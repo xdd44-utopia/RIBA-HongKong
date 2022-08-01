@@ -6,8 +6,8 @@ public class MazeGenerator : MonoBehaviour
 {
 	public GameObject prefab;
 
-	private const int n = 5;
-	private const float cellSize = 3;
+	public static int n = 5;
+	public static float cellSize = 3;
 
 	private int cx = 0;
 	private int cy = 0;

@@ -9,6 +9,9 @@ public class MazeGenerator : MonoBehaviour
 	private const int n = 5;
 	private const float cellSize = 3;
 
+	private int cx = 0;
+	private int cy = 0;
+	private int cd = 0;
 	private int[] dx = {1, 0, -1, 0};
 	private int[] dy = {0, 1, 0, -1};
 	private Quaternion[] rots = {
@@ -39,24 +42,13 @@ public class MazeGenerator : MonoBehaviour
 		}
 	}
 	private Cell[] map = new Cell[n * n];
-
-	public Transform cam;
-	private int cx = 0;
-	private int cy = 0;
-	private int cd = 0;
-	private const float speed = 0.5f;
-	private bool isMoving = true;
-	private Vector3[] dv = {
-		new Vector3(1, 0, 0),
-		new Vector3(0, 0, 1),
-		new Vector3(-1, 0, 0),
-		new Vector3(0, 0, -1)
-	};
-	private const float turnSpeed = 2.5f;
-	private float[] dr = {90, 0, 270, 180};
+	private int[] steps = new int[n * n];
+	private int curStep = 0;
+	private CameraController cam;
 
 	void Start()
 	{
+		cam = Camera.main.gameObject.GetComponent<CameraController>();
 		for (int i=0;i<n*n;i++) {
 			map[i] = new Cell(i);
 		}
@@ -88,40 +80,28 @@ public class MazeGenerator : MonoBehaviour
 			Instantiate(prefab, new Vector3(cellSize * (i / n), 0, cellSize * (i % n)) + poss[4] * cellSize, rots[4]);
 			Instantiate(prefab, new Vector3(cellSize * (i / n), 0, cellSize * (i % n)) + poss[5] * cellSize, rots[5]);
 		}
-
-		cd = map[0].adj[0] ? 0 : 1;
-		cam.rotation = Quaternion.Euler(0, dr[cd], 0);
+		steps[0] = -1;
 	}
 
 	// Update is called once per frame
 	void Update()
 	{
-		if (isMoving) {
-			cam.position = cam.position + dv[cd] * speed * Time.deltaTime;
-			if (Vector3.Distance(cam.position, new Vector3((cx + dx[cd]) * cellSize, 1.5f, (cy + dy[cd]) * cellSize)) < 0.1f) {
-				cam.position = new Vector3((cx + dx[cd]) * cellSize, 1.5f, (cy + dy[cd]) * cellSize);
-				cx += dx[cd];
-				cy += dy[cd];
-				bool changeDir = false;
-				int prevcd = cd;
-				while (cx + dx[cd] < 0 || cy + dy[cd] < 0 || cx + dx[cd] >= n || cy + dy[cd] >= n || !map[(cx) * n + cy].adj[cd]) {
-					if (map[(cx) * n + cy].adj[prevcd ^ 1] || map[(cx) * n + cy].adj[prevcd ^ 1 ^ 2]) {
-						cd = Random.Range(0, 2) == 0 ? prevcd ^ 1 : prevcd ^ 1 ^ 2;
-					}
-					else {
-						cd = prevcd ^ 2;
-					}
-					changeDir = true;
+		cx = (int)Mathf.Floor((Camera.main.transform.position.x + cellSize / 2) / cellSize);
+		cy = (int)Mathf.Floor((Camera.main.transform.position.z + cellSize / 2) / cellSize);
+		if (steps[cx * n + cy] < curStep) {
+			curStep++;
+			steps[cx * n + cy] = curStep;
+			int prevcd = cd;
+			while (cx + dx[cd] < 0 || cy + dy[cd] < 0 || cx + dx[cd] >= n || cy + dy[cd] >= n || !map[(cx) * n + cy].adj[cd] ||
+				((map[(cx) * n + cy].adj[prevcd ^ 1] || map[(cx) * n + cy].adj[prevcd ^ 1 ^ 2]) && Random.Range(0, 2) == 0)) {
+				if (map[(cx) * n + cy].adj[prevcd ^ 1] || map[(cx) * n + cy].adj[prevcd ^ 1 ^ 2]) {
+					cd = Random.Range(0, 2) == 0 ? prevcd ^ 1 : prevcd ^ 1 ^ 2;
 				}
-				isMoving = !changeDir;
+				else {
+					cd = prevcd ^ 2;
+				}
 			}
-		}
-		else {
-			cam.rotation = Quaternion.Euler(0, Mathf.Lerp(cam.rotation.eulerAngles.y, dr[cd], turnSpeed * Time.deltaTime), 0);
-			if (Mathf.Abs(cam.rotation.eulerAngles.y - dr[cd]) < 0.025f) {
-				cam.rotation = Quaternion.Euler(0, dr[cd], 0);
-				isMoving = true;
-			}
+			cam.addTarget(new Vector3((cx + dx[cd]) * cellSize, 1.5f, (cy + dy[cd]) * cellSize));
 		}
 	}
 
